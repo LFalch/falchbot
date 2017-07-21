@@ -5,7 +5,8 @@ extern crate typemap;
 
 use typemap::Key;
 
-use serenity::client::Client;
+use serenity::Result;
+use serenity::client::{Client, Context};
 use serenity::model;
 use serenity::utils;
 use std::env;
@@ -30,17 +31,18 @@ command!(setgame(ctx, _msg, args) {
     ctx.set_game(model::Game::playing(&args.join(" ")));
 });
 
-const CSGO_MSGS: [&str; 4] = [
+const CSGO_MSGS: [&str; 5] = [
     "Vi varmer op med en comp!",
     "Jeg er på!",
     "Jeg er mere til Call of Duty ..",
+    "Сука блядь!",
     "Mongoskrald!"
 ];
 
 const BEARTOOTH: [&str; 3] = [
     "I’m not useless! I’m just the king of excuses!",
     "One life and one decision! Make sure it ends with you still living!",
-    "Lorte skat på T-shirts."
+    "Lorteskat på T-shirts."
 ];
 
 const RESPONSES: [&str; 4] = [
@@ -48,6 +50,13 @@ const RESPONSES: [&str; 4] = [
     "Hey, kan jeg ringe igen senere?",
     "Hva' så din noob!? :P",
     "Ad, hvem er du?"
+];
+
+const REDALERT: [&str; 4] = [
+    "Your base is under a salt!",
+    "Det gamle lortespil?",
+    "Jeg er mere til CSGO.",
+    "\"Mine depleted\" ..."
 ];
 
 struct BotUser;
@@ -85,47 +94,78 @@ fn main() {
         }
     });
 
-    client.on_message(|ctx, msg| {
-        if msg.author.bot {
-            return
-        }
-        let s: String = msg.content.chars()
-            .filter(|c| c.is_alphabetic())
-            .flat_map(|c|c.to_lowercase())
-            .collect();
-
-        if s.contains("csgo") {
-            let i = thread_rng().gen_range(0, CSGO_MSGS.len());
-            msg.channel_id.say(CSGO_MSGS[i]).unwrap();
-        }
-        if s.contains("mc") {
-            msg.channel_id.say("MINECRAFT!").unwrap();
-        }
-        if s.contains("beartooth") {
-            let i = thread_rng().gen_range(0, BEARTOOTH.len());
-            msg.channel_id.say(BEARTOOTH[i]).unwrap();
-        }
-        if s.contains("rep") {
-            msg.channel_id.say("Rep mig!").unwrap();
-        }
-        if s.contains("meme") {
-            msg.channel_id.say("krydrede migmig'er").unwrap();
-        }
-        if s.contains("rusland") || s.contains("russia") || s.contains("росси") ||
-            s.contains("russisk") || s.contains("russian") || s.contains("русск") {
-            msg.channel_id.say("Communism is the ultimate goal of socialism!").unwrap();
-        }
-        let user = {
-            ctx.data.lock().unwrap().get::<BotUser>().unwrap().clone()
-        };
-        if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
-            let i = thread_rng().gen_range(0, RESPONSES.len());
-            msg.channel_id.say(RESPONSES[i]).unwrap();
-        }
-    });
-
+    client.on_message(on_message);
 
     if let Err(why) = client.start() {
         println!("Client error: {:?}", why);
+    }
+}
+
+fn send_random(chl: model::ChannelId, list: &[&str]) -> Result<model::Message> {
+    let i = thread_rng().gen_range(0, list.len());
+    chl.say(list[i])
+}
+
+fn on_message(ctx: Context, msg: model::Message) {
+    if msg.author.bot {
+        return
+    }
+    let s: String = msg.content.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(|c|c.to_lowercase())
+        .collect();
+
+    if s.contains("css") || s.contains("source") {
+        msg.channel_id.say("Hvor er mine skins!?").unwrap();
+    }
+    if s.contains("csgo") || s.contains("counterstrike") || s.contains("globaloffensive") {
+        send_random(msg.channel_id, &CSGO_MSGS).unwrap();
+    }
+    if s.contains("mc") || s.contains("minecraft") {
+        msg.channel_id.say("MINECRAFT!").unwrap();
+    }
+    if s.contains("beartooth") {
+        send_random(msg.channel_id, &BEARTOOTH).unwrap();
+    }
+    if s.contains("rep") {
+        msg.channel_id.say("Rep mig!").unwrap();
+    }
+    if s.contains("ftl") {
+        msg.channel_id.say("Zoltan shield OP").unwrap();
+    }
+    if s.contains("bindingofisaac") {
+        msg.channel_id.say("Mom OP").unwrap();
+    }
+    if s.contains("meme") {
+        msg.channel_id.say("krydrede migmig'er").unwrap();
+    }
+    if s.contains("gunsoficarus") {
+        msg.channel_id.say("Spillere online: 85").unwrap();
+    }
+    if s.contains("doom") {
+        msg.channel_id.say("Rip and tear!").unwrap();
+    }
+    if s.contains("dyinglight") {
+        msg.channel_id.say("Left 4 Dead?").unwrap();
+    }
+    if s.contains("english") {
+        msg.channel_id.send_message(|cm| {
+            cm.embed(|e| {
+                e.image("http://dev.lfalch.com/english.jpg")
+            })
+        }).unwrap();
+    }
+    if s.contains("ra3") || s.contains("redalert") {
+        send_random(msg.channel_id, &REDALERT).unwrap();
+    }
+    if s.contains("rusland") || s.contains("russia") || s.contains("росси") ||
+        s.contains("russisk") || s.contains("russian") || s.contains("русск") {
+        msg.channel_id.say("Communism is the ultimate goal of socialism.").unwrap();
+    }
+    let user = {
+        ctx.data.lock().unwrap().get::<BotUser>().unwrap().clone()
+    };
+    if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
+        send_random(msg.channel_id, &RESPONSES).unwrap();
     }
 }
