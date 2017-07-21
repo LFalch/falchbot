@@ -2,7 +2,9 @@
 name = "falchbot"
 version = "0.0.1"
 dependencies = [
+ "rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serenity 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
