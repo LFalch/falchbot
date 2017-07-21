@@ -1,0 +1,7 @@
+[package]
+name = "falchbot"
+version = "0.0.1"
+authors = ["lucas <lucas@wasd.dk>"]
+
+[dependencies]
+serenity = "0.3"
