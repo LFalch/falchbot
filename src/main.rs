@@ -33,7 +33,7 @@ command!(setgame(ctx, _msg, args) {
 });
 
 command!(rpn(_ctx, msg, args) {
-    match calculate(&args.join(" ")) {
+    match calculate(&args) {
         Ok(r) => msg.reply(&format!("Result: {}", r)),
         Err(e) => msg.reply(&format!("Error: {:?}", e))
     }.unwrap();
@@ -180,10 +180,8 @@ pub enum RpnError {
 
 use RpnError::*;
 
-pub fn calculate(calculation: &str) -> StdResult<f64, RpnError>{
+pub fn calculate<'a, T: IntoIterator<Item=&'a String>>(operations: T) -> StdResult<f64, RpnError> {
     let mut stack = Vec::new();
-
-    let operations = calculation.trim().split(' ');
 
     for operation in operations {
         let d = operation.parse::<f64>().ok();
