@@ -171,44 +171,44 @@ fn on_message(ctx: Context, msg: model::Message) {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum RpnError {
+pub enum RpnError<'a> {
     StackTooSmall,
-    UnknownOperator(char),
-    NoOperands,
-    MissingOperator
+    UnknownOperator(&'a str)
 }
 
 use RpnError::*;
 
-pub fn calculate<'a, T: IntoIterator<Item=&'a String>>(operations: T) -> StdResult<f64, RpnError> {
+pub fn calculate<'a, T: IntoIterator<Item=&'a String>>(operations: T) -> StdResult<f64, RpnError<'a>> {
     let mut stack = Vec::new();
 
     for operation in operations {
-        let d = operation.parse::<f64>().ok();
-        if let Some(d) = d {
-            stack.push(d);
+        if let Some(d) = operation.parse::<f64>().ok() {
+            stack.push(d)
         }else{
-            calc(operation.chars().next().ok_or(MissingOperator)?, &mut stack)?
+            calc(operation, &mut stack)?
         }
     }
 
-    stack.pop().ok_or(NoOperands)
+    stack.pop().ok_or(StackTooSmall)
 }
 
-fn calc(op: char, stack: &mut Vec<f64>) -> StdResult<(), RpnError>{
-    match (stack.pop(), stack.pop()){
+fn calc<'a>(op: &'a str, stack: &mut Vec<f64>) -> StdResult<(), RpnError<'a>>{
+    let res = match (stack.pop(), stack.pop()){
         (Some(op1), Some(op2)) => match op{
-            '+' => stack.push(op2 + op1),
-            '-' => stack.push(op2 - op1),
-            '/' => stack.push(op2 / op1),
-            '*' => stack.push(op2 * op1),
-            '^' => stack.push(op2.powf(op1)),
-            '%' => stack.push(op2 % op1),
-            '|' => stack.push((op2 as i64 | op1 as i64) as f64),
-            '&' => stack.push((op2 as i64 & op1 as i64) as f64),
+            "+"|"add" => op2 + op1,
+            "-"|"sub" => op2 - op1,
+            "/"|"div" => op2 / op1,
+            "*"|"mul" => op2 * op1,
+            "^"|"pow" => op2.powf(op1),
+            "log" => op2.log(op1),
+            "hypot" => op2.hypot(op1),
+            "%"|"rem" => op2 % op1,
+            "|"|"or" => (op2 as i64 | op1 as i64) as f64,
+            "&"|"and" => (op2 as i64 & op1 as i64) as f64,
+            "xor" => (op2  as i64 ^ op1 as i64) as f64,
             _ => return Err(UnknownOperator(op))
         },
         _ => return Err(StackTooSmall)
-    }
-    Ok(())
+    };
+    Ok(stack.push(res))
 }
