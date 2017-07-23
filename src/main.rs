@@ -203,6 +203,9 @@ fn calc(op: char, stack: &mut Vec<f64>) -> StdResult<(), RpnError>{
             '/' => stack.push(op2 / op1),
             '*' => stack.push(op2 * op1),
             '^' => stack.push(op2.powf(op1)),
+            '%' => stack.push(op2 % op1),
+            '|' => stack.push((op2 as i64 | op1 as i64) as f64),
+            '&' => stack.push((op2 as i64 & op1 as i64) as f64),
             _ => return Err(UnknownOperator(op))
         },
         _ => return Err(StackTooSmall)
