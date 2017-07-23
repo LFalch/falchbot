@@ -174,8 +174,11 @@ fn on_message(ctx: Context, msg: model::Message) {
 pub enum RpnError {
     StackTooSmall,
     UnknownOperator(char),
-    NoOperands
+    NoOperands,
+    MissingOperator
 }
+
+use RpnError::*;
 
 pub fn calculate(calculation: &str) -> StdResult<f64, RpnError>{
     let mut stack = Vec::new();
@@ -187,11 +190,11 @@ pub fn calculate(calculation: &str) -> StdResult<f64, RpnError>{
         if let Some(d) = d {
             stack.push(d);
         }else{
-            calc(operation.chars().next().unwrap(), &mut stack)?
+            calc(operation.chars().next().ok_or(MissingOperator)?, &mut stack)?
         }
     }
 
-    stack.pop().ok_or(RpnError::NoOperands)
+    stack.pop().ok_or(NoOperands)
 }
 
 fn calc(op: char, stack: &mut Vec<f64>) -> StdResult<(), RpnError>{
@@ -202,9 +205,9 @@ fn calc(op: char, stack: &mut Vec<f64>) -> StdResult<(), RpnError>{
             '/' => stack.push(op2 / op1),
             '*' => stack.push(op2 * op1),
             '^' => stack.push(op2.powf(op1)),
-            _ => return Err(RpnError::UnknownOperator(op))
+            _ => return Err(UnknownOperator(op))
         },
-        _ => return Err(RpnError::StackTooSmall)
+        _ => return Err(StackTooSmall)
     }
     Ok(())
 }
