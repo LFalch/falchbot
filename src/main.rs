@@ -3,16 +3,17 @@ extern crate serenity;
 extern crate rand;
 extern crate typemap;
 
+use std::env;
+use std::result::Result as StdResult;
 use typemap::Key;
+
+use rand::Rng;
+use rand::thread_rng;
 
 use serenity::Result;
 use serenity::client::{Client, Context};
 use serenity::model;
 use serenity::utils;
-use std::env;
-
-use rand::Rng;
-use rand::thread_rng;
 
 const PREFIX: &str = "f>";
 
@@ -29,6 +30,13 @@ command!(info(_ctx, msg, _args) {
 
 command!(setgame(ctx, _msg, args) {
     ctx.set_game(model::Game::playing(&args.join(" ")));
+});
+
+command!(rpn(_ctx, msg, args) {
+    match calculate(&args.join(" ")) {
+        Ok(r) => msg.reply(&format!("Result: {}", r)),
+        Err(e) => msg.reply(&format!("Error: {:?}", e))
+    }.unwrap();
 });
 
 const CSGO_MSGS: [&str; 5] = [
@@ -75,6 +83,7 @@ fn main() {
         .command("ping", |c| c.exec_str("Pong!"))
         .on("info", info)
         .on("setgame", setgame)
+        .on("rpn", rpn)
     );
 
     {
@@ -159,7 +168,7 @@ fn on_message(ctx: Context, msg: model::Message) {
         send_random(msg.channel_id, &REDALERT).unwrap();
     }
     if s.contains("rusland") || s.contains("russia") || s.contains("росси") ||
-        s.contains("russisk") || s.contains("russian") || s.contains("русск") {
+        s.contains("russisk") || s.contains("russian") || s.contains("русск") || s.contains("russer"){
         msg.channel_id.say("Communism is the ultimate goal of socialism.").unwrap();
     }
     let user = {
@@ -168,4 +177,43 @@ fn on_message(ctx: Context, msg: model::Message) {
     if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
         send_random(msg.channel_id, &RESPONSES).unwrap();
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum RpnError {
+    StackTooSmall,
+    UnknownOperator(char),
+    NoOperands
+}
+
+pub fn calculate(calculation: &str) -> StdResult<f64, RpnError>{
+    let mut stack = Vec::new();
+
+    let operations = calculation.trim().split(' ');
+
+    for operation in operations {
+        let d = operation.parse::<f64>().ok();
+        if let Some(d) = d {
+            stack.push(d);
+        }else{
+            calc(operation.chars().next().unwrap(), &mut stack)?
+        }
+    }
+
+    stack.pop().ok_or(RpnError::NoOperands)
+}
+
+fn calc(op: char, stack: &mut Vec<f64>) -> StdResult<(), RpnError>{
+    match (stack.pop(), stack.pop()){
+        (Some(op1), Some(op2)) => match op{
+            '+' => stack.push(op2 + op1),
+            '-' => stack.push(op2 - op1),
+            '/' => stack.push(op2 / op1),
+            '*' => stack.push(op2 * op1),
+            '^' => stack.push(op2.powf(op1)),
+            _ => return Err(RpnError::UnknownOperator(op))
+        },
+        _ => return Err(RpnError::StackTooSmall)
+    }
+    Ok(())
 }
