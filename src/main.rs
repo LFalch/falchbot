@@ -56,7 +56,7 @@ const BEARTOOTH: [&str; 3] = [
 const RESPONSES: [&str; 4] = [
     "Undskyld, kan ikke snakke lige nu :(",
     "Hey, kan jeg ringe igen senere?",
-    "Hva' så din noob!? :P",
+    "Hva' så, din noob!? :P",
     "Ad, hvem er du?"
 ];
 
@@ -115,6 +115,22 @@ fn send_random(chl: model::ChannelId, list: &[&str]) -> Result<model::Message> {
     chl.say(list[i])
 }
 
+macro_rules! joke {
+    ($s:expr; $($trigger:expr),+; $bl:block) => (
+        if $($s.contains($trigger))||* $bl
+    );
+    ($s:expr, $channel_id:expr; $($trigger:expr),+;; $joke:expr) => (
+        joke!($s; $($trigger),*; {
+            $channel_id.say($joke).unwrap();
+        })
+    );
+    ($s:expr, $channel_id:expr; $($trigger:expr),+; $jokes:expr) => (
+        joke!($s; $($trigger),*; {
+            send_random($channel_id, &$jokes).unwrap();
+        })
+    );
+}
+
 fn on_message(ctx: Context, msg: model::Message) {
     if msg.author.bot {
         return
@@ -124,53 +140,28 @@ fn on_message(ctx: Context, msg: model::Message) {
         .flat_map(|c|c.to_lowercase())
         .collect();
 
-    if s.contains("css") || s.contains("source") {
-        msg.channel_id.say("Hvor er mine skins!?").unwrap();
-    }
-    if s.contains("csgo") || s.contains("counterstrike") || s.contains("globaloffensive") {
-        send_random(msg.channel_id, &CSGO_MSGS).unwrap();
-    }
-    if s.contains("mc") || s.contains("minecraft") {
-        msg.channel_id.say("MINECRAFT!").unwrap();
-    }
-    if s.contains("beartooth") {
-        send_random(msg.channel_id, &BEARTOOTH).unwrap();
-    }
-    if s.contains("rep") {
-        msg.channel_id.say("Rep mig!").unwrap();
-    }
-    if s.contains("ftl") {
-        msg.channel_id.say("Zoltan shield OP").unwrap();
-    }
-    if s.contains("bindingofisaac") {
-        msg.channel_id.say("Mom OP").unwrap();
-    }
-    if s.contains("meme") {
-        msg.channel_id.say("krydrede migmig'er").unwrap();
-    }
-    if s.contains("gunsoficarus") {
-        msg.channel_id.say("Spillere online: 85").unwrap();
-    }
-    if s.contains("doom") {
-        msg.channel_id.say("Rip and tear!").unwrap();
-    }
-    if s.contains("dyinglight") {
-        msg.channel_id.say("Left 4 Dead?").unwrap();
-    }
-    if s.contains("english") {
+    joke!(s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
+    joke!(s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
+    joke!(s, msg.channel_id; "mc", "minecraft";; "MINECRAFT!");
+    joke!(s, msg.channel_id; "beartooth"; BEARTOOTH);
+    joke!(s, msg.channel_id; "rep";; "Rep mig!");
+    joke!(s, msg.channel_id; "ftl";; "Zoltan shield OP");
+    joke!(s, msg.channel_id; "bindingofisaac";; "Mom OP");
+    joke!(s, msg.channel_id; "meme";; "krydrede migmig'er");
+    joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 85");
+    joke!(s, msg.channel_id; "doom";; "Rip and tear!");
+    joke!(s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
+    joke!(s; "english"; {
         msg.channel_id.send_message(|cm| {
             cm.embed(|e| {
                 e.image("http://dev.lfalch.com/english.jpg")
             })
         }).unwrap();
-    }
-    if s.contains("ra3") || s.contains("redalert") {
-        send_random(msg.channel_id, &REDALERT).unwrap();
-    }
-    if s.contains("rusland") || s.contains("russia") || s.contains("росси") ||
-        s.contains("russisk") || s.contains("russian") || s.contains("русск") || s.contains("russer"){
-        msg.channel_id.say("Communism is the ultimate goal of socialism.").unwrap();
-    }
+    });
+    joke!(s, msg.channel_id; "ra3", "redalert"; REDALERT);
+    joke!(s, msg.channel_id; "rusland", "russia", "росси", "russisk",
+        "russian", "русск", "russer";; "Communism is the ultimate goal of socialism.");
+
     let user = {
         ctx.data.lock().unwrap().get::<BotUser>().unwrap().clone()
     };
