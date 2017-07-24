@@ -39,11 +39,12 @@ command!(rpn(_ctx, msg, args) {
     }.unwrap();
 });
 
-const CSGO_MSGS: [&str; 5] = [
+const CSGO_MSGS: [&str; 6] = [
     "Vi varmer op med en comp!",
     "Jeg er på!",
     "Jeg er mere til Call of Duty ..",
     "Сука блядь!",
+    "-skyder en bot for at få dens Bizon-",
     "Mongoskrald!"
 ];
 
