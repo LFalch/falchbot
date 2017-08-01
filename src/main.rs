@@ -159,6 +159,7 @@ fn on_message(ctx: Context, msg: model::Message) {
             })
         }).unwrap();
     });
+    joke!(s, msg.channel_id; "warthunder", "wt", "thunder", "tankspil";; "Jeg hader World of Tanks!");
     joke!(s, msg.channel_id; "ra3", "redalert"; REDALERT);
     joke!(s, msg.channel_id; "rusland", "russia", "росси", "russisk",
         "russian", "русск", "russer";; "Communism is the ultimate goal of socialism.");
