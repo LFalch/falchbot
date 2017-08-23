@@ -2,6 +2,10 @@
 extern crate serenity;
 extern crate rand;
 extern crate typemap;
+extern crate stalch;
+
+use std::io;
+use stalch::{run_with_state, InOuter, State, Result as StalchResult};
 
 use std::env;
 use std::result::Result as StdResult;
@@ -35,6 +39,19 @@ command!(setgame(ctx, _msg, args) {
 command!(rpn(_ctx, msg, args) {
     match calculate(&args) {
         Ok(r) => msg.reply(&format!("Result: {}", r)),
+        Err(e) => msg.reply(&format!("Error: {:?}", e))
+    }.unwrap();
+});
+
+command!(stalch(_ctx, msg, args) {
+    match stalch_run(args.join(" ") + "\n") {
+        Ok((r, s)) => {
+            if r.is_empty() {
+                msg.reply(&format!("Stack:\n```\n{}\n```", s))
+            } else {
+                msg.reply(&format!("Output:\n```\n{}\n```", r))
+            }
+        }
         Err(e) => msg.reply(&format!("Error: {:?}", e))
     }.unwrap();
 });
@@ -85,6 +102,7 @@ fn main() {
         .on("info", info)
         .on("setgame", setgame)
         .on("rpn", rpn)
+        .on("stalch", stalch)
     );
 
     {
@@ -213,4 +231,17 @@ fn calc<'a>(op: &'a str, stack: &mut Vec<f64>) -> StdResult<(), RpnError<'a>>{
         _ => return Err(StackTooSmall)
     };
     Ok(stack.push(res))
+}
+
+fn stalch_run<'a>(s: String) -> StalchResult<(String, String)> {
+    let mut state = State::new();
+    let mut io = InOuter::new(Vec::new(), io::repeat(b'\n'));
+
+    run_with_state(s.as_bytes(), &mut state, &mut io)?;
+
+    let (output, _) = io.extract();
+
+    let s = String::from_utf8(output).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+    Ok((s, format!("{:?}", state.stack())))
 }
