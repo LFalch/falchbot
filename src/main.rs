@@ -170,6 +170,7 @@ fn on_message(ctx: Context, msg: model::Message) {
     joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 85");
     joke!(s, msg.channel_id; "doom";; "Rip and tear!");
     joke!(s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
+    joke!(s, msg.channel_id; "report";; "ReviewBrah");
     joke!(s; "english"; {
         msg.channel_id.send_message(|cm| {
             cm.embed(|e| {
