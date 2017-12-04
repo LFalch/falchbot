@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["lucas <lucas@wasd.dk>"]
 
 [dependencies]
-serenity = "0.3"
+serenity = "0.4"
 rand = "0.3"
 typemap = "0.3.3"
 stalch = {git = "http://github.com/LFalch/stalch.git"}

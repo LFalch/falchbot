@@ -14,10 +14,12 @@ use typemap::Key;
 use rand::Rng;
 use rand::thread_rng;
 
+use serenity::prelude::*;
+use serenity::model::*;
 use serenity::Result;
-use serenity::client::{Client, Context};
-use serenity::model;
 use serenity::utils;
+
+use serenity::framework::StandardFramework;
 
 const PREFIX: &str = "f>";
 
@@ -33,11 +35,11 @@ command!(info(_ctx, msg, _args) {
 });
 
 command!(setgame(ctx, _msg, args) {
-    ctx.set_game(model::Game::playing(&args.join(" ")));
+    ctx.set_game(Game::playing(&args.join(" ")));
 });
 
 command!(rpn(_ctx, msg, args) {
-    match calculate(&args) {
+    match calculate(&*args) {
         Ok(r) => msg.reply(&format!("Result: {}", r)),
         Err(e) => msg.reply(&format!("Error: {:?}", e))
     }.unwrap();
@@ -91,12 +93,14 @@ impl Key for BotUser {
     type Value = String;
 }
 
+struct Handler;
+
 fn main() {
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment");
-    let mut client = Client::new(&token);
+    let mut client = Client::new(&token, Handler);
 
-    client.with_framework(|f| f
+    client.with_framework(StandardFramework::new()
         .configure(|c| c.prefix(PREFIX))
         .command("ping", |c| c.exec_str("Pong!"))
         .on("info", info)
@@ -106,32 +110,13 @@ fn main() {
     );
 
     {
-        let mut data = client.data.lock().unwrap();
+        let mut data = client.data.lock();
         data.insert::<BotUser>(String::default());
     }
-
-    client.on_ready(|ctx, ready| {
-        println!("{} is connected!", ready.user.name);
-        println!("Guilds:");
-        for name in ready.guilds.iter().map(|g| g.id().get().unwrap().name) {
-            println!("    {}", name);
-        }
-        {
-            let mut data = ctx.data.lock().unwrap();
-            *data.get_mut::<BotUser>().unwrap() = ready.user.tag();
-        }
-    });
-
-    client.on_message(on_message);
 
     if let Err(why) = client.start() {
         println!("Client error: {:?}", why);
     }
-}
-
-fn send_random(chl: model::ChannelId, list: &[&str]) -> Result<model::Message> {
-    let i = thread_rng().gen_range(0, list.len());
-    chl.say(list[i])
 }
 
 macro_rules! joke {
@@ -150,45 +135,64 @@ macro_rules! joke {
     );
 }
 
-fn on_message(ctx: Context, msg: model::Message) {
-    if msg.author.bot {
-        return
+impl EventHandler for Handler {
+    fn on_ready(&self, ctx: Context, ready: Ready) {
+        println!("{} is connected!", ready.user.name);
+        println!("Guilds:");
+        for name in ready.guilds.iter().map(|g| g.id().get().unwrap().name) {
+            println!("    {}", name);
+        }
+        {
+            let mut data = ctx.data.lock();
+            *data.get_mut::<BotUser>().unwrap() = ready.user.tag();
+        }
     }
-    let s: String = msg.content.chars()
+
+    fn on_message(&self, ctx: Context, msg: Message) {
+        if msg.author.bot {
+            return
+        }
+        let s: String = msg.content.chars()
         .filter(|c| c.is_alphanumeric())
         .flat_map(|c|c.to_lowercase())
         .collect();
 
-    joke!(s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
-    joke!(s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
-    joke!(s, msg.channel_id; "mc", "minecraft";; "MINECRAFT!");
-    joke!(s, msg.channel_id; "beartooth"; BEARTOOTH);
-    joke!(s, msg.channel_id; "rep";; "Rep mig!");
-    joke!(s, msg.channel_id; "ftl";; "Zoltan shield OP");
-    joke!(s, msg.channel_id; "bindingofisaac";; "Mom OP");
-    joke!(s, msg.channel_id; "meme";; "krydrede migmig'er");
-    joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 85");
-    joke!(s, msg.channel_id; "doom";; "Rip and tear!");
-    joke!(s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
-    joke!(s, msg.channel_id; "report";; "ReviewBrah");
-    joke!(s; "english"; {
-        msg.channel_id.send_message(|cm| {
-            cm.embed(|e| {
-                e.image("http://dev.lfalch.com/english.jpg")
-            })
-        }).unwrap();
-    });
-    joke!(s, msg.channel_id; "warthunder", "wt", "thunder", "tankspil";; "Jeg hader World of Tanks!");
-    joke!(s, msg.channel_id; "ra3", "redalert"; REDALERT);
-    joke!(s, msg.channel_id; "rusland", "russia", "росси", "russisk",
+        joke!(s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
+        joke!(s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
+        joke!(s, msg.channel_id; "mc", "minecraft";; "MINECRAFT!");
+        joke!(s, msg.channel_id; "beartooth"; BEARTOOTH);
+        joke!(s, msg.channel_id; "rep";; "Rep mig!");
+        joke!(s, msg.channel_id; "ftl";; "Zoltan shield OP");
+        joke!(s, msg.channel_id; "bindingofisaac";; "Mom OP");
+        joke!(s, msg.channel_id; "meme";; "krydrede migmig'er");
+        joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 85");
+        joke!(s, msg.channel_id; "doom";; "Rip and tear!");
+        joke!(s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
+        joke!(s, msg.channel_id; "report";; "ReviewBrah");
+        joke!(s; "english"; {
+            msg.channel_id.send_message(|cm| {
+                cm.embed(|e| {
+                    e.image("http://dev.lfalch.com/english.jpg")
+                })
+            }).unwrap();
+        });
+        joke!(s, msg.channel_id; "warthunder", "wt", "thunder", "tankspil";; "Jeg hader World of Tanks!");
+        joke!(s, msg.channel_id; "ra3", "redalert"; REDALERT);
+        joke!(s, msg.channel_id; "rusland", "russia", "росси", "russisk",
         "russian", "русск", "russer";; "Communism is the ultimate goal of socialism.");
 
-    let user = {
-        ctx.data.lock().unwrap().get::<BotUser>().unwrap().clone()
-    };
-    if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
-        send_random(msg.channel_id, &RESPONSES).unwrap();
+        let user = {
+            ctx.data.lock().get::<BotUser>().unwrap().clone()
+        };
+        if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
+            send_random(msg.channel_id, &RESPONSES).unwrap();
+        }
     }
+}
+
+fn send_random(chl: ChannelId, list: &[&str]) -> Result<Message> {
+    let i = thread_rng().gen_range(0, list.len());
+    chl.say(list[i])
 }
 
 #[derive(Debug, Copy, Clone)]
