@@ -3,6 +3,7 @@ extern crate serenity;
 extern crate rand;
 extern crate typemap;
 extern crate stalch;
+extern crate seximal;
 
 use std::io;
 use stalch::{run_with_state, InOuter, State, Result as StalchResult};
@@ -58,6 +59,14 @@ command!(stalch(_ctx, msg, args) {
     }.unwrap();
 });
 
+command!(seximal(_ctx, msg, args) {
+    let s = args.join("");
+    match seximal::to_seximal_words(&s) {
+        Ok(ref s) => msg.reply(s),
+        Err(_) => msg.reply("Malformed number")
+    }.unwrap();
+});
+
 const CSGO_MSGS: [&str; 6] = [
     "Vi varmer op med en comp!",
     "Jeg er på!",
@@ -107,6 +116,7 @@ fn main() {
         .on("setgame", setgame)
         .on("rpn", rpn)
         .on("stalch", stalch)
+        .on("seximal", seximal)
     );
 
     {
