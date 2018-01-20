@@ -540,7 +540,7 @@ dependencies = [
 [[package]]
 name = "seximal"
 version = "0.1.0"
-source = "git+http://github.com/LFalch/seximal.git#092b58adfdadc8996699ad2233b13cfb90dd6f30"
+source = "git+http://github.com/LFalch/seximal.git#a556d34d1a029e365038e5945ee31209672b5ff5"
 
 [[package]]
 name = "sha1"
