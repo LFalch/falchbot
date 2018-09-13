@@ -107,6 +107,8 @@ impl Key for BotUser {
 struct Handler;
 
 fn main() {
+    println!("{} in {}", WESTMANN, MEMES);
+
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment");
     let mut client = Client::new(&token, Handler);
@@ -164,6 +166,7 @@ impl EventHandler for Handler {
         if msg.author.bot {
             return
         }
+        eprintln!("{} in {}: image: {}", msg.channel_id.0, msg.author.id.0, msg.embeds.iter().any(|a| a.image.is_some()));
         if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.embeds.iter().any(|a| a.image.is_some()) {
             msg.channel_id.say("Den er gammel!");
         }
