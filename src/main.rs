@@ -164,7 +164,7 @@ impl EventHandler for Handler {
         if msg.author.bot {
             return
         }
-        if msg.channel_id == MEMES && msg.author.id = WESTMANN && msg.embeds.iter().any(|a| a.image.is_some()) {
+        if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.embeds.iter().any(|a| a.image.is_some()) {
             msg.channel_id.say("Den er gammel!");
         }
         let s: String = msg.content.chars()
