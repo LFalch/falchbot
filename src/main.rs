@@ -23,6 +23,8 @@ use serenity::utils;
 use serenity::framework::StandardFramework;
 
 const PREFIX: &str = "f>";
+const WESTMANN: UserId = UserId(229154015626264577);
+const MEMES: ChannelId = ChannelId(306454829738491904);
 
 command!(info(_ctx, msg, _args) {
     msg.channel_id.send_message(|cm| {
@@ -161,6 +163,9 @@ impl EventHandler for Handler {
     fn on_message(&self, ctx: Context, msg: Message) {
         if msg.author.bot {
             return
+        }
+        if msg.channel_id == MEMES && msg.author.id = WESTMANN && msg.embeds.iter().any(|a| a.image.is_some()) {
+            msg.channel_id.say("Den er gammel!");
         }
         let s: String = msg.content.chars()
         .filter(|c| c.is_alphanumeric())
