@@ -166,9 +166,9 @@ impl EventHandler for Handler {
         if msg.author.bot {
             return
         }
-        eprintln!("{} in {}: image: {}", msg.channel_id.0, msg.author.id.0, msg.embeds.iter().any(|a| a.image.is_some()));
-        if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.embeds.iter().any(|a| a.image.is_some()) {
-            msg.channel_id.say("Den er gammel!");
+        eprintln!("{} in {}: image: {}", msg.channel_id.0, msg.author.id.0, msg.attachments.iter().any(|a| a.width.is_some()));
+        if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.attachments.iter().any(|a| a.width.is_some()) {
+            msg.channel_id.say("Den er gammel!").unwrap();
         }
         let s: String = msg.content.chars()
         .filter(|c| c.is_alphanumeric())
