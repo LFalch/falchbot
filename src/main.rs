@@ -4,11 +4,14 @@ extern crate rand;
 extern crate typemap;
 extern crate stalch;
 extern crate seximal;
+extern crate hyper;
+extern crate base64;
 
 use std::io;
 use stalch::{run_with_state, InOuter, State, Result as StalchResult};
 
 use std::env;
+use std::io::Read;
 use std::result::Result as StdResult;
 use typemap::Key;
 
@@ -19,33 +22,68 @@ use serenity::prelude::*;
 use serenity::model::*;
 use serenity::Result;
 use serenity::utils;
+use serenity::CACHE;
 
 use serenity::framework::StandardFramework;
 
-const PREFIX: &str = "f>";
+const PREFIX: &str = "f]";
 const WESTMANN: UserId = UserId(229154015626264577);
+const FALCH: UserId = UserId(165877785544491008);
 const MEMES: ChannelId = ChannelId(306454829738491904);
+const FALCHATS: GuildId = GuildId(189120762659995648);
 
 command!(info(_ctx, msg, _args) {
     msg.channel_id.send_message(|cm| {
         cm.embed(|e| {
-            e.title("lfalchbot")
+            e.title("falchbot")
              .colour(utils::Colour::blue())
-             .description("(c) LFalch.com 2017")
+             .description("(c) LFalch.com 2018")
              .footer(|f| f.text(serenity::constants::USER_AGENT))
         })
     }).unwrap();
 });
 
-command!(setgame(ctx, _msg, args) {
-    ctx.set_game(Game::playing(&args.join(" ")));
+command!(setgame(ctx, msg, args) {
+    if msg.author.id == FALCH {
+        ctx.set_game(Game::playing(&args.join(" ")));
+    } else {
+        msg.reply("Unauthorised")?;
+    }
+});
+
+command!(seticon(_ctx, msg, args) {
+    let s = args.join("/");
+
+    if msg.author.id == FALCH {
+        let img = {
+            let client = hyper::Client::new();
+            let mut resp = client.get(&format!("http://dev.lfalch.com/{}.png", s)).send()?;
+            if !resp.status.is_success() {
+                msg.reply("No success")?;
+                return Ok(());
+            }
+
+            let mut v = Vec::new();
+
+            resp.read_to_end(&mut v)?;
+
+            let b64 = base64::encode(&v);
+            let ext = "png";
+
+            format!("data:image/{};base64,{}", ext, b64)
+        };
+
+        FALCHATS.edit(|e| e.icon(Some(&img)))?;
+    } else {
+        msg.reply("Unauthorised")?;
+    }
 });
 
 command!(rpn(_ctx, msg, args) {
     match calculate(&*args) {
         Ok(r) => msg.reply(&format!("Result: {}", r)),
         Err(e) => msg.reply(&format!("Error: {:?}", e))
-    }.unwrap();
+    }?;
 });
 
 command!(stalch(_ctx, msg, args) {
@@ -58,7 +96,7 @@ command!(stalch(_ctx, msg, args) {
             }
         }
         Err(e) => msg.reply(&format!("Error: {:?}", e))
-    }.unwrap();
+    }?;
 });
 
 command!(seximal(_ctx, msg, args) {
@@ -66,7 +104,7 @@ command!(seximal(_ctx, msg, args) {
     match seximal::to_seximal_words(&s) {
         Ok(ref s) => msg.reply(s),
         Err(_) => msg.reply("Malformed number")
-    }.unwrap();
+    }?;
 });
 
 const CSGO_MSGS: [&str; 6] = [
@@ -121,6 +159,7 @@ fn main() {
         .on("rpn", rpn)
         .on("stalch", stalch)
         .on("seximal", seximal)
+        .on("seticon", seticon)
     );
 
     {
