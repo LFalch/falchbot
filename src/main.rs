@@ -26,7 +26,7 @@ use serenity::CACHE;
 
 use serenity::framework::StandardFramework;
 
-const PREFIX: &str = "f]";
+const PREFIX: &str = "]";
 const WESTMANN: UserId = UserId(229154015626264577);
 const FALCH: UserId = UserId(165877785544491008);
 const MEMES: ChannelId = ChannelId(306454829738491904);
