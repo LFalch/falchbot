@@ -619,7 +619,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "stalch"
 version = "0.3.0"
-source = "git+http://github.com/LFalch/stalch.git#41d1287b234ee9422c3ef6122c4200283037d7f3"
+source = "git+http://github.com/LFalch/stalch.git#53232bccffc22ee2c2acc03975af87020971bc73"
 
 [[package]]
 name = "syn"
