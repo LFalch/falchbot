@@ -1,11 +1,7 @@
+#![warn(clippy::all)]
+
 #[macro_use]
 extern crate serenity;
-extern crate rand;
-extern crate typemap;
-extern crate stalch;
-extern crate seximal;
-extern crate hyper;
-extern crate base64;
 
 use std::io;
 use stalch::{run_with_state, InOuter, State, Result as StalchResult};
@@ -22,14 +18,17 @@ use serenity::prelude::*;
 use serenity::model::*;
 use serenity::Result;
 use serenity::utils;
-use serenity::CACHE;
 
 use serenity::framework::StandardFramework;
 
 const PREFIX: &str = "]";
+#[allow(clippy::unreadable_literal)]
 const WESTMANN: UserId = UserId(229154015626264577);
+#[allow(clippy::unreadable_literal)]
 const FALCH: UserId = UserId(165877785544491008);
+#[allow(clippy::unreadable_literal)]
 const MEMES: ChannelId = ChannelId(306454829738491904);
+#[allow(clippy::unreadable_literal)]
 const FALCHATS: GuildId = GuildId(189120762659995648);
 
 command!(info(_ctx, msg, _args) {
@@ -87,7 +86,7 @@ command!(rpn(_ctx, msg, args) {
 });
 
 command!(stalch(_ctx, msg, args) {
-    match stalch_run(args.join(" ") + "\n") {
+    match stalch_run(&(args.join(" ") + "\n")) {
         Ok((r, s)) => {
             if r.is_empty() {
                 msg.reply(&format!("Stack:\n```\n{}\n```", s))
@@ -258,13 +257,13 @@ pub enum RpnError<'a> {
     UnknownOperator(&'a str)
 }
 
-use RpnError::*;
+use crate::RpnError::*;
 
 pub fn calculate<'a, T: IntoIterator<Item=&'a String>>(operations: T) -> StdResult<f64, RpnError<'a>> {
     let mut stack = Vec::new();
 
     for operation in operations {
-        if let Some(d) = operation.parse::<f64>().ok() {
+        if let Ok(d) = operation.parse::<f64>() {
             stack.push(d)
         }else{
             calc(operation, &mut stack)?
@@ -292,10 +291,11 @@ fn calc<'a>(op: &'a str, stack: &mut Vec<f64>) -> StdResult<(), RpnError<'a>>{
         },
         _ => return Err(StackTooSmall)
     };
-    Ok(stack.push(res))
+    stack.push(res);
+    Ok(())
 }
 
-fn stalch_run<'a>(s: String) -> StalchResult<(String, String)> {
+fn stalch_run(s: &str) -> StalchResult<(String, String)> {
     let mut state = State::new();
     let mut io = InOuter::new(Vec::new(), io::repeat(b'\n'));
 
