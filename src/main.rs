@@ -98,6 +98,17 @@ command!(stalch(_ctx, msg, args) {
     }?;
 });
 
+command!(pdgqz(ctx, msg, _args) {
+    let mut pdqz = ctx.data.lock();
+    let pdqz = pdqz.get_mut::<PdgqzDisalloweds>().unwrap();
+    
+    if let Some(i) = pdqz.iter().position(|ch| ch == &msg.channel_id) {
+        pdqz.remove(i);
+    } else {
+        pdqz.push(msg.channel_id);
+    }
+});
+
 command!(seximal(_ctx, msg, args) {
     let s = args.join("");
     match seximal::to_seximal_words(&s) {
@@ -135,12 +146,19 @@ const REDALERT: [&str; 4] = [
     "\"Mine depleted\" ..."
 ];
 
+struct PdgqzDisalloweds;
+
+impl Key for PdgqzDisalloweds {
+    type Value = Vec<ChannelId>;
+}
+
 struct BotUser;
 
 impl Key for BotUser {
     type Value = String;
 }
 
+#[derive(Default)]
 struct Handler;
 
 fn main() {
@@ -148,7 +166,7 @@ fn main() {
 
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment");
-    let mut client = Client::new(&token, Handler);
+    let mut client = Client::new(&token, Handler::default());
 
     client.with_framework(StandardFramework::new()
         .configure(|c| c.prefix(PREFIX))
@@ -157,6 +175,7 @@ fn main() {
         .on("setgame", setgame)
         .on("rpn", rpn)
         .on("stalch", stalch)
+        .on("pdgqz", pdgqz)
         .on("seximal", seximal)
         .on("seticon", seticon)
     );
@@ -164,6 +183,7 @@ fn main() {
     {
         let mut data = client.data.lock();
         data.insert::<BotUser>(String::default());
+        data.insert::<PdgqzDisalloweds>(Vec::new());
     }
 
     if let Err(why) = client.start() {
@@ -204,7 +224,20 @@ impl EventHandler for Handler {
         if msg.author.bot {
             return
         }
-        eprintln!("{} in {}: image: {}", msg.channel_id.0, msg.author.id.0, msg.attachments.iter().any(|a| a.width.is_some()));
+        {
+            if ctx.data.lock().get::<PdgqzDisalloweds>().unwrap().contains(&msg.channel_id) {
+                let filter = |c: char| {
+                    let c = c.to_lowercase().next().unwrap();
+                     c == 'p' || c == 'd' || c == 'g' || c == 'q' || c == 'z'
+                };
+                if msg.content.chars().any(filter) {
+                    let s = msg.content.chars().filter(|c| !filter(*c)).collect::<String>();
+                    if !s.is_empty() {
+                        msg.channel_id.say(s).unwrap();
+                    }
+                }
+            }
+        }
         if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.attachments.iter().any(|a| a.width.is_some()) {
             msg.channel_id.say("Den er gammel!").unwrap();
         }
