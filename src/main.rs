@@ -248,7 +248,7 @@ impl EventHandler for Handler {
 
         joke!(s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
         joke!(s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
-        joke!(s, msg.channel_id; "mc", "minecraft";; "MINECRAFT!");
+        joke!(s, msg.channel_id; "minecraft";; "MINECRAFT!");
         joke!(s, msg.channel_id; "beartooth"; BEARTOOTH);
         joke!(s, msg.channel_id; "rep";; "Rep mig!");
         joke!(s, msg.channel_id; "ftl";; "Zoltan shield OP");
@@ -268,7 +268,7 @@ impl EventHandler for Handler {
         joke!(s, msg.channel_id; "warthunder", "thunder", "tankspil";; "Jeg elsker World of Tanks!");
         joke!(s, msg.channel_id; "ra3", "redalert"; REDALERT);
         joke!(s, msg.channel_id; "rusland", "russia", "росси", "russisk",
-        "russian", "русск", "russer";; "Communism is the ultimate goal of socialism.");
+        "russian", "русск", "russer";; "Союз нерушимый республик свободных!");
 
         let user = {
             ctx.data.lock().get::<BotUser>().unwrap().clone()
