@@ -5,10 +5,10 @@ authors = ["lucas <lucas@wasd.dk>"]
 edition = "2018"
 
 [dependencies]
-serenity = "0.4"
-rand = "0.3"
+serenity = "0.5.14"
+rand = "0.6.5"
 typemap = "0.3.3"
 stalch = {git = "http://github.com/LFalch/stalch.git"}
 seximal = {git = "http://github.com/LFalch/seximal.git"}
 hyper = "0.10"
-base64 = "0.7"
+base64 = "0.10.1"

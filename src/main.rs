@@ -1,10 +1,8 @@
 #![warn(clippy::all)]
 
-#[macro_use]
-extern crate serenity;
-
 use std::io;
-use stalch::{run_with_state, InOuter, State, Result as StalchResult};
+use ::stalch::{run_with_state, InOuter, State, Result as StalchResult};
+use ::seximal::to_seximal_words;
 
 use std::env;
 use std::io::Read;
@@ -15,7 +13,12 @@ use rand::Rng;
 use rand::thread_rng;
 
 use serenity::prelude::*;
-use serenity::model::*;
+use serenity::framework::standard::{CommandError, Args};
+use serenity::model::{
+    channel::*,
+    gateway::*,
+    id::*,
+};
 use serenity::Result;
 use serenity::utils;
 
@@ -26,32 +29,52 @@ const PREFIX: &str = "]";
 const WESTMANN: UserId = UserId(229154015626264577);
 #[allow(clippy::unreadable_literal)]
 const FALCH: UserId = UserId(165877785544491008);
+
 #[allow(clippy::unreadable_literal)]
 const MEMES: ChannelId = ChannelId(306454829738491904);
 #[allow(clippy::unreadable_literal)]
+const COUNCIL: ChannelId = ChannelId(588016489811017749);
+#[allow(clippy::unreadable_literal)]
+const COUNCIL_POLLS: ChannelId = ChannelId(588054919676952596);
+#[allow(clippy::unreadable_literal)]
+const COUNCIL_POLLS_RESULTS: ChannelId = ChannelId(588106268946858006);
+
+const VOTE_YES: EmojiId = EmojiId(588070595401482269);
+const VOTE_NO: EmojiId = EmojiId(588070628456660992);
+
+
+#[allow(clippy::unreadable_literal)]
 const FALCHATS: GuildId = GuildId(189120762659995648);
 
-command!(info(_ctx, msg, _args) {
+fn ping(_context: &mut Context, message: &Message, _args: Args) -> StdResult<(), CommandError> {
+    message.channel_id.say("Pong!")?;
+
+    Ok(())
+}
+
+fn info(_ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), CommandError> {
     msg.channel_id.send_message(|cm| {
         cm.embed(|e| {
             e.title("falchbot")
-             .colour(utils::Colour::blue())
+             .colour(utils::Colour::BLUE)
              .description("(c) LFalch.com 2018")
              .footer(|f| f.text(serenity::constants::USER_AGENT))
         })
     }).unwrap();
-});
+    Ok(())
+}
 
-command!(setgame(ctx, msg, args) {
+fn setgame(ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
     if msg.author.id == FALCH {
-        ctx.set_game(Game::playing(&args.join(" ")));
+        ctx.set_game(Game::playing(args.full()));
     } else {
         msg.reply("Unauthorised")?;
     }
-});
+    Ok(())
+}
 
-command!(seticon(_ctx, msg, args) {
-    let s = args.join("/");
+fn seticon(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
+    let s = args.full();
 
     if msg.author.id == FALCH {
         let img = {
@@ -76,17 +99,19 @@ command!(seticon(_ctx, msg, args) {
     } else {
         msg.reply("Unauthorised")?;
     }
-});
+    Ok(())
+}
 
-command!(rpn(_ctx, msg, args) {
-    match calculate(&*args) {
+fn rpn(_ctx: &mut Context, msg: &Message, mut args: Args) -> StdResult<(), CommandError> {
+    match calculate(args.iter::<String>().map(|s| s.unwrap()).by_ref()) {
         Ok(r) => msg.reply(&format!("Result: {}", r)),
         Err(e) => msg.reply(&format!("Error: {:?}", e))
     }?;
-});
+    Ok(())
+}
 
-command!(stalch(_ctx, msg, args) {
-    match stalch_run(&(args.join(" ") + "\n")) {
+fn stalch(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
+    match stalch_run(&(args.full().to_owned() + "\n")) {
         Ok((r, s)) => {
             if r.is_empty() {
                 msg.reply(&format!("Stack:\n```\n{}\n```", s))
@@ -96,9 +121,10 @@ command!(stalch(_ctx, msg, args) {
         }
         Err(e) => msg.reply(&format!("Error: {:?}", e))
     }?;
-});
+    Ok(())
+}
 
-command!(pdgqz(ctx, msg, _args) {
+fn pdgqz(ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), CommandError> {
     let mut pdqz = ctx.data.lock();
     let pdqz = pdqz.get_mut::<PdgqzDisalloweds>().unwrap();
     
@@ -107,15 +133,32 @@ command!(pdgqz(ctx, msg, _args) {
     } else {
         pdqz.push(msg.channel_id);
     }
-});
+    Ok(())
+}
 
-command!(seximal(_ctx, msg, args) {
-    let s = args.join("");
-    match seximal::to_seximal_words(&s) {
+fn seximal(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
+    let s: String = args.full().chars().filter(|c| !c.is_whitespace()).collect();
+    match to_seximal_words(&s) {
         Ok(ref s) => msg.reply(s),
         Err(_) => msg.reply("Malformed number")
     }?;
-});
+    Ok(())
+}
+
+fn emojis(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
+    let guild = FALCHATS.to_partial_guild().unwrap();
+    let mut emoji: Vec<_> = guild.emojis.values().map(|e| (e.id.0, e.name.to_owned())).collect();
+
+    if let Some(emoji_name) = args.current() {
+        emoji.retain(|e| e.1 == emoji_name);
+    }
+
+    for emoji in emoji {
+        msg.channel_id.say(format!("{}: {}", emoji.1, emoji.0))?;
+    }
+
+    Ok(())
+}
 
 const CSGO_MSGS: [&str; 6] = [
     "Vi varmer op med en comp!",
@@ -162,22 +205,21 @@ impl Key for BotUser {
 struct Handler;
 
 fn main() {
-    println!("{} in {}", WESTMANN, MEMES);
-
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment");
-    let mut client = Client::new(&token, Handler::default());
+    let mut client = Client::new(&token, Handler::default()).unwrap();
 
     client.with_framework(StandardFramework::new()
         .configure(|c| c.prefix(PREFIX))
-        .command("ping", |c| c.exec_str("Pong!"))
-        .on("info", info)
-        .on("setgame", setgame)
-        .on("rpn", rpn)
-        .on("stalch", stalch)
-        .on("pdgqz", pdgqz)
-        .on("seximal", seximal)
-        .on("seticon", seticon)
+        .cmd("ping", ping)
+        .cmd("info", info)
+        .cmd("emoji", emojis)
+        .cmd("setgame", setgame)
+        .cmd("rpn", rpn)
+        .cmd("stalch", stalch)
+        .cmd("pdgqz", pdgqz)
+        .cmd("seximal", seximal)
+        .cmd("seticon", seticon)
     );
 
     {
@@ -208,10 +250,10 @@ macro_rules! joke {
 }
 
 impl EventHandler for Handler {
-    fn on_ready(&self, ctx: Context, ready: Ready) {
+    fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         println!("Guilds:");
-        for name in ready.guilds.iter().map(|g| g.id().get().unwrap().name) {
+        for name in ready.guilds.iter().map(|g| g.id().to_partial_guild().unwrap().name) {
             println!("    {}", name);
         }
         {
@@ -220,7 +262,7 @@ impl EventHandler for Handler {
         }
     }
 
-    fn on_message(&self, ctx: Context, msg: Message) {
+    fn message(&self, ctx: Context, msg: Message) {
         if msg.author.bot {
             return
         }
@@ -236,6 +278,22 @@ impl EventHandler for Handler {
                         msg.channel_id.say(s).unwrap();
                     }
                 }
+            }
+        }
+        if msg.channel_id == COUNCIL {
+            let start = msg.content.get(..6).unwrap_or("");
+            if start == "poll: " || start == "Poll: " || start == "POLL: " {
+                let poll = &msg.content[6..];
+
+                let msg = COUNCIL_POLLS.say(format!("{}: {}", msg.author.mention(), poll)).unwrap();
+
+                use serenity::model::misc::EmojiIdentifier;
+
+                let yes = EmojiIdentifier{id: VOTE_YES, name: "yes".to_owned()};
+                let no = EmojiIdentifier{id: VOTE_NO, name: "no".to_owned()};
+
+                msg.react(yes).unwrap();
+                msg.react(no).unwrap();
             }
         }
         if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.attachments.iter().any(|a| a.width.is_some()) {
@@ -277,6 +335,29 @@ impl EventHandler for Handler {
             send_random(msg.channel_id, &RESPONSES).unwrap();
         }
     }
+
+    fn reaction_add(&self, _ctx: Context, add_reaction: Reaction) {
+        if add_reaction.channel_id == COUNCIL_POLLS {
+            let message = add_reaction.message().unwrap();
+            let (mut ayes, mut noes) = (0, 0);
+
+            for reaction in message.reactions {
+                if let ReactionType::Custom{id, ..} = reaction.reaction_type {
+                    if id == VOTE_YES {
+                        ayes += reaction.count;
+                    }
+                    if id == VOTE_NO {
+                        noes += reaction.count;
+                    }
+                }
+            }
+            if ayes > 3 {
+                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet vedtaget {}-{}:\n{}", ayes-1, noes-1, message.content)).unwrap();
+            } else if noes > 3 {
+                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet afslået {}-{}:\n{}", noes-1, ayes-1, message.content)).unwrap();
+            }
+        }
+    }
 }
 
 fn send_random(chl: ChannelId, list: &[&str]) -> Result<Message> {
@@ -284,29 +365,29 @@ fn send_random(chl: ChannelId, list: &[&str]) -> Result<Message> {
     chl.say(list[i])
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum RpnError<'a> {
+#[derive(Debug, Clone)]
+pub enum RpnError {
     StackTooSmall,
-    UnknownOperator(&'a str)
+    UnknownOperator(String)
 }
 
 use crate::RpnError::*;
 
-pub fn calculate<'a, T: IntoIterator<Item=&'a String>>(operations: T) -> StdResult<f64, RpnError<'a>> {
+pub fn calculate<T: IntoIterator<Item=String>>(operations: T) -> StdResult<f64, RpnError> {
     let mut stack = Vec::new();
 
     for operation in operations {
         if let Ok(d) = operation.parse::<f64>() {
             stack.push(d)
         }else{
-            calc(operation, &mut stack)?
+            calc(&operation, &mut stack)?
         }
     }
 
     stack.pop().ok_or(StackTooSmall)
 }
 
-fn calc<'a>(op: &'a str, stack: &mut Vec<f64>) -> StdResult<(), RpnError<'a>>{
+fn calc(op: &str, stack: &mut Vec<f64>) -> StdResult<(), RpnError> {
     let res = match (stack.pop(), stack.pop()){
         (Some(op1), Some(op2)) => match op{
             "+"|"add" => op2 + op1,
@@ -320,7 +401,7 @@ fn calc<'a>(op: &'a str, stack: &mut Vec<f64>) -> StdResult<(), RpnError<'a>>{
             "|"|"or" => (op2 as i64 | op1 as i64) as f64,
             "&"|"and" => (op2 as i64 & op1 as i64) as f64,
             "xor" => (op2  as i64 ^ op1 as i64) as f64,
-            _ => return Err(UnknownOperator(op))
+            _ => return Err(UnknownOperator(op.to_owned()))
         },
         _ => return Err(StackTooSmall)
     };
