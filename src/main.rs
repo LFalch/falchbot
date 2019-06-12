@@ -18,6 +18,7 @@ use serenity::model::{
     channel::*,
     gateway::*,
     id::*,
+    misc::EmojiIdentifier
 };
 use serenity::Result;
 use serenity::utils;
@@ -39,11 +40,13 @@ const COUNCIL_POLLS: ChannelId = ChannelId(588054919676952596);
 #[allow(clippy::unreadable_literal)]
 const COUNCIL_POLLS_RESULTS: ChannelId = ChannelId(588106268946858006);
 
+#[allow(clippy::unreadable_literal)]
 const VOTE_YES: EmojiId = EmojiId(588070595401482269);
+#[allow(clippy::unreadable_literal)]
 const VOTE_NO: EmojiId = EmojiId(588070628456660992);
 
-const VOTE_YES_MENTION: &str = "<:ja:588070595401482269>";
-const VOTE_NO_MENTION: &str = "<:nej:588070628456660992>";
+#[allow(clippy::unreadable_literal)]
+const COUNCILLOR_ROLE: RoleId = RoleId(588012792326520836);
 
 #[allow(clippy::unreadable_literal)]
 const FALCHATS: GuildId = GuildId(189120762659995648);
@@ -289,8 +292,6 @@ impl EventHandler for Handler {
 
                 let msg = COUNCIL_POLLS.say(format!("{}: {}", msg.author.mention(), poll)).unwrap();
 
-                use serenity::model::misc::EmojiIdentifier;
-
                 let yes = EmojiIdentifier{id: VOTE_YES, name: "yes".to_owned()};
                 let no = EmojiIdentifier{id: VOTE_NO, name: "no".to_owned()};
 
@@ -341,26 +342,43 @@ impl EventHandler for Handler {
     fn reaction_add(&self, _ctx: Context, add_reaction: Reaction) {
         if add_reaction.channel_id == COUNCIL_POLLS {
             let message = add_reaction.message().unwrap();
-            let (mut ayes, mut noes) = (0, 0);
 
-            for reaction in message.reactions {
-                if let ReactionType::Custom{id, ..} = reaction.reaction_type {
-                    if id == VOTE_YES {
-                        ayes += reaction.count;
-                    }
-                    if id == VOTE_NO {
-                        noes += reaction.count;
-                    }
-                }
+            if message.reactions.iter().any(|r| if let ReactionType::Unicode(ref s) = r.reaction_type {
+                s == "❎" || s == "✅"
+            } else { false }) {
+                // Has already been decided
+                return;
             }
-            if ayes > 3 || noes > 3 {
+
+            let mut aye_sayers = message.reaction_users(EmojiIdentifier{id: VOTE_YES, name: "ja".to_owned()}, None, None).unwrap();
+            let mut nay_sayers = message.reaction_users(EmojiIdentifier{id: VOTE_NO, name: "nej".to_owned()}, None, None).unwrap();
+
+            aye_sayers.retain(|u| !u.bot && u.has_role(FALCHATS, COUNCILLOR_ROLE));
+            nay_sayers.retain(|u| !u.bot && u.has_role(FALCHATS, COUNCILLOR_ROLE));
+
+            let pass_limit = (FALCHATS
+                .members(Some(1000), None::<UserId>)
+                .unwrap()
+                .iter()
+                .filter(|member| member.roles.contains(&COUNCILLOR_ROLE))
+                .count() + 1) / 2;
+
+            let (ayes, noes) = (aye_sayers.len(), nay_sayers.len());
+
+            if ayes >= pass_limit || noes >= pass_limit {
                 use std::cmp::Ordering::*;
                 let verdict = match ayes.cmp(&noes) {
-                    Greater => ("vedtaget ", VOTE_YES_MENTION),
-                    Less => ("afslået ", VOTE_NO_MENTION),
+                    Greater => ("vedtaget ", "✅", aye_sayers),
+                    Less => ("afslået ", "❎", nay_sayers),
                     Equal => return,
                 };
-                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet **{}{}** {}-{}\n{}", verdict.0, verdict.1, ayes-1, noes-1, message.content)).unwrap();
+                let mut list_of_people = String::with_capacity(37*verdict.2.len());
+                for person in &verdict.2 {
+                    list_of_people.push_str(", ");
+                    list_of_people.push_str(&person.mention());
+                }
+                message.react(verdict.1).unwrap();
+                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet **{}{}** {}-{} af {}: \n{}", verdict.0, verdict.1, ayes, noes, &list_of_people[2..], message.content)).unwrap();
             }
         }
     }
