@@ -42,6 +42,8 @@ const COUNCIL_POLLS_RESULTS: ChannelId = ChannelId(588106268946858006);
 const VOTE_YES: EmojiId = EmojiId(588070595401482269);
 const VOTE_NO: EmojiId = EmojiId(588070628456660992);
 
+const VOTE_YES_MENTION: &str = "<:ja:588070595401482269>";
+const VOTE_NO_MENTION: &str = "<:nej:588070628456660992>";
 
 #[allow(clippy::unreadable_literal)]
 const FALCHATS: GuildId = GuildId(189120762659995648);
@@ -351,10 +353,14 @@ impl EventHandler for Handler {
                     }
                 }
             }
-            if ayes > 3 {
-                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet vedtaget {}-{}:\n{}", ayes-1, noes-1, message.content)).unwrap();
-            } else if noes > 3 {
-                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet afslået {}-{}:\n{}", noes-1, ayes-1, message.content)).unwrap();
+            if ayes > 3 || noes > 3 {
+                use std::cmp::Ordering::*;
+                let verdict = match ayes.cmp(&noes) {
+                    Greater => ("vedtaget ", VOTE_YES_MENTION),
+                    Less => ("afslået ", VOTE_NO_MENTION),
+                    Equal => return,
+                };
+                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet **{}{}** {}-{}\n{}", verdict.0, verdict.1, ayes-1, noes-1, message.content)).unwrap();
             }
         }
     }
