@@ -1,6 +1,6 @@
 #![warn(clippy::all)]
 
-use std::io;
+use std::{io, fs::File, collections::HashMap};
 use ::stalch::{run_with_state, InOuter, State, Result as StalchResult};
 use ::seximal::to_seximal_words;
 
@@ -9,8 +9,7 @@ use std::io::Read;
 use std::result::Result as StdResult;
 use typemap::Key;
 
-use rand::Rng;
-use rand::thread_rng;
+use rand::{Rng, thread_rng, rngs::ThreadRng};
 
 use serenity::prelude::*;
 use serenity::framework::standard::{CommandError, Args};
@@ -165,6 +164,27 @@ fn emojis(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), Comman
     Ok(())
 }
 
+fn vote(_ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), CommandError> {
+    if msg.channel().unwrap().private().is_some() {
+        let user_id = msg.author.id;
+
+
+        let mut voters = load_voters()?;
+        let voter;
+        if let Some(v) = voters.get(&user_id) {
+            voter = v.clone();
+        } else {
+            voter = uid();
+            voters.insert(user_id, voter.clone());
+        }
+        save_voters(&voters)?;
+        msg.reply(&voter)?;
+    } else {
+        msg.reply("Please DM me instead with this.")?;
+    }
+    Ok(())
+}
+
 const CSGO_MSGS: [&str; 6] = [
     "Vi varmer op med en comp!",
     "Jeg er på!",
@@ -206,6 +226,60 @@ impl Key for BotUser {
     type Value = String;
 }
 
+const NUM_CHARS: usize = 36;
+const CHARACTERS: [char; NUM_CHARS] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+    'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+];
+
+struct RandomCharacterIter {
+    rng: ThreadRng,
+}
+
+impl Iterator for RandomCharacterIter {
+    type Item = char;
+    fn next(&mut self) -> Option<char> {
+        Some(CHARACTERS[self.rng.gen_range(0, NUM_CHARS)])
+    }
+}
+
+fn uid() -> String {
+    RandomCharacterIter { rng: rand::thread_rng() }.take(20).collect::<String>()
+}
+
+type Voters = HashMap<UserId, String>;
+
+use std::io::{Write, BufRead};
+
+
+fn load_voters() -> io::Result<Voters> {
+    let file = io::BufReader::new(match File::open("./voters.data") {
+        Ok(f) => f,
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => return Ok(Voters::new()),
+        Err(e) => return Err(e)
+    });
+
+    let mut ret = Voters::new();
+
+    for line in file.lines() {
+        let line = line?;
+        let l = line.trim();
+        let i = line.find(':').unwrap();
+        let (usr, vote_id) = l.split_at(i);
+
+        ret.insert(UserId(usr.trim_end().parse::<u64>().map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?), vote_id[1..].trim_start().to_owned());
+    }
+    Ok(ret)
+}
+fn save_voters(users: &Voters) -> io::Result<()> {
+    let mut file = File::create("./voters.data")?;
+
+    for (usr, vote_id) in users {
+        file.write_fmt(format_args!("{}:{}\n", usr.0, vote_id))?;
+    }
+    Ok(())
+}
+
 #[derive(Default)]
 struct Handler;
 
@@ -225,6 +299,7 @@ fn main() {
         .cmd("pdgqz", pdgqz)
         .cmd("seximal", seximal)
         .cmd("seticon", seticon)
+        .cmd("vote", vote)
     );
 
     {
@@ -315,7 +390,7 @@ impl EventHandler for Handler {
         joke!(s, msg.channel_id; "ftl";; "Zoltan shield OP");
         joke!(s, msg.channel_id; "bindingofisaac";; "Mom OP");
         joke!(s, msg.channel_id; "meme";; "krydrede migmig'er");
-        joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 85");
+        joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 8");
         joke!(s, msg.channel_id; "doom";; "Rip and tear!");
         joke!(s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
         joke!(s, msg.channel_id; "report";; "ReviewBrah");
@@ -361,11 +436,11 @@ impl EventHandler for Handler {
                 .unwrap()
                 .iter()
                 .filter(|member| member.roles.contains(&COUNCILLOR_ROLE))
-                .count() + 1) / 2;
+                .count()) / 2;
 
             let (ayes, noes) = (aye_sayers.len(), nay_sayers.len());
 
-            if ayes >= pass_limit || noes >= pass_limit {
+            if ayes > pass_limit || noes > pass_limit {
                 use std::cmp::Ordering::*;
                 let verdict = match ayes.cmp(&noes) {
                     Greater => ("vedtaget ", "✅", aye_sayers),
