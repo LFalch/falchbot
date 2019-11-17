@@ -5,14 +5,15 @@ use ::stalch::{run_with_state, InOuter, State, Result as StalchResult};
 use ::seximal::to_seximal_words;
 
 use std::env;
-use std::io::Read;
 use std::result::Result as StdResult;
 use typemap::Key;
 
 use rand::{Rng, thread_rng, rngs::ThreadRng};
 
+// use hyper::rt::Future;
+
 use serenity::prelude::*;
-use serenity::framework::standard::{CommandError, Args};
+use serenity::framework::standard::{CommandResult, Args, macros::*};
 use serenity::model::{
     channel::*,
     gateway::*,
@@ -50,14 +51,16 @@ const COUNCILLOR_ROLE: RoleId = RoleId(588012792326520836);
 #[allow(clippy::unreadable_literal)]
 const FALCHATS: GuildId = GuildId(189120762659995648);
 
-fn ping(_context: &mut Context, message: &Message, _args: Args) -> StdResult<(), CommandError> {
-    message.channel_id.say("Pong!")?;
+#[command]
+fn ping(ctx: &mut Context, message: &Message, _args: Args) -> CommandResult {
+    message.channel_id.say(ctx, "Pong!")?;
 
     Ok(())
 }
 
-fn info(_ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), CommandError> {
-    msg.channel_id.send_message(|cm| {
+#[command]
+fn info(ctx: &mut Context, msg: &Message, _args: Args) -> CommandResult {
+    msg.channel_id.send_message(ctx, |cm| {
         cm.embed(|e| {
             e.title("falchbot")
              .colour(utils::Colour::BLUE)
@@ -68,68 +71,84 @@ fn info(_ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), Command
     Ok(())
 }
 
-fn setgame(ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
+#[command]
+fn setgame(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     if msg.author.id == FALCH {
-        ctx.set_game(Game::playing(args.full()));
+        ctx.set_activity(Activity::playing(args.message()));
     } else {
-        msg.reply("Unauthorised")?;
+        msg.reply(ctx, "Unauthorised")?;
     }
     Ok(())
 }
 
-fn seticon(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
-    let s = args.full();
+// fn seticon(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+//     let s = args.message();
 
+//     if msg.author.id == FALCH {
+//         let img = {
+//             let client = hyper::Client::new();
+//             let mut resp = client.get(hyper::Uri::from_static(&format!("http://dev.lfalch.com/{}.png", s))).wait()?;
+//             if !resp.status().is_success() {
+//                 msg.reply(ctx, "No success")?;
+//                 return Ok(());
+//             }
+
+//             let mut v = Vec::new();
+
+//             resp.into_body().for_each(|chunk| {
+//                 v.extend(chunk);
+//             });
+
+//             let b64 = base64::encode(&v);
+//             let ext = "png";
+
+//             format!("data:image/{};base64,{}", ext, b64)
+//         };
+
+//         FALCHATS.edit(|e| e.icon(Some(&img)))?;
+//     } else {
+//         msg.reply("Unauthorised")?;
+//     }
+//     Ok(())
+// }
+
+#[command]
+fn say(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     if msg.author.id == FALCH {
-        let img = {
-            let client = hyper::Client::new();
-            let mut resp = client.get(&format!("http://dev.lfalch.com/{}.png", s)).send()?;
-            if !resp.status.is_success() {
-                msg.reply("No success")?;
-                return Ok(());
-            }
-
-            let mut v = Vec::new();
-
-            resp.read_to_end(&mut v)?;
-
-            let b64 = base64::encode(&v);
-            let ext = "png";
-
-            format!("data:image/{};base64,{}", ext, b64)
-        };
-
-        FALCHATS.edit(|e| e.icon(Some(&img)))?;
+        msg.channel_id.say(ctx, args.message())?;
     } else {
-        msg.reply("Unauthorised")?;
+        msg.reply(ctx, "Unauthorised")?;
     }
     Ok(())
 }
 
-fn rpn(_ctx: &mut Context, msg: &Message, mut args: Args) -> StdResult<(), CommandError> {
+#[command]
+fn rpn(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     match calculate(args.iter::<String>().map(|s| s.unwrap()).by_ref()) {
-        Ok(r) => msg.reply(&format!("Result: {}", r)),
-        Err(e) => msg.reply(&format!("Error: {:?}", e))
+        Ok(r) => msg.reply(ctx, &format!("Result: {}", r)),
+        Err(e) => msg.reply(ctx, &format!("Error: {:?}", e))
     }?;
     Ok(())
 }
 
-fn stalch(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
-    match stalch_run(&(args.full().to_owned() + "\n")) {
+#[command]
+fn stalch(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+    match stalch_run(&(args.message().to_owned() + "\n")) {
         Ok((r, s)) => {
             if r.is_empty() {
-                msg.reply(&format!("Stack:\n```\n{}\n```", s))
+                msg.reply(ctx, &format!("Stack:\n```\n{}\n```", s))
             } else {
-                msg.reply(&format!("Output:\n```\n{}\n```", r))
+                msg.reply(ctx, &format!("Output:\n```\n{}\n```", r))
             }
         }
-        Err(e) => msg.reply(&format!("Error: {:?}", e))
+        Err(e) => msg.reply(ctx, &format!("Error: {:?}", e))
     }?;
     Ok(())
 }
 
-fn pdgqz(ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), CommandError> {
-    let mut pdqz = ctx.data.lock();
+#[command]
+fn pdgqz(ctx: &mut Context, msg: &Message, _args: Args) -> CommandResult {
+    let mut pdqz = ctx.data.write();
     let pdqz = pdqz.get_mut::<PdgqzDisalloweds>().unwrap();
     
     if let Some(i) = pdqz.iter().position(|ch| ch == &msg.channel_id) {
@@ -140,17 +159,19 @@ fn pdgqz(ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), Command
     Ok(())
 }
 
-fn seximal(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
-    let s: String = args.full().chars().filter(|c| !c.is_whitespace()).collect();
+#[command]
+fn seximal(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+    let s: String = args.message().chars().filter(|c| !c.is_whitespace()).collect();
     match to_seximal_words(&s) {
-        Ok(ref s) => msg.reply(s),
-        Err(_) => msg.reply("Malformed number")
+        Ok(ref s) => msg.reply(ctx, s),
+        Err(_) => msg.reply(ctx, "Malformed number")
     }?;
     Ok(())
 }
 
-fn emojis(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), CommandError> {
-    let guild = FALCHATS.to_partial_guild().unwrap();
+#[command]
+fn emojis(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
+    let guild = FALCHATS.to_partial_guild(&ctx).unwrap();
     let mut emoji: Vec<_> = guild.emojis.values().map(|e| (e.id.0, e.name.to_owned())).collect();
 
     if let Some(emoji_name) = args.current() {
@@ -158,14 +179,15 @@ fn emojis(_ctx: &mut Context, msg: &Message, args: Args) -> StdResult<(), Comman
     }
 
     for emoji in emoji {
-        msg.channel_id.say(format!("{}: {}", emoji.1, emoji.0))?;
+        msg.channel_id.say(&ctx, format!("{}: {}", emoji.1, emoji.0))?;
     }
 
     Ok(())
 }
 
-fn vote(_ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), CommandError> {
-    if msg.channel().unwrap().private().is_some() {
+#[command]
+fn vote(ctx: &mut Context, msg: &Message, _args: Args) -> CommandResult {
+    if msg.channel(&ctx).unwrap().private().is_some() {
         let user_id = msg.author.id;
 
 
@@ -178,9 +200,9 @@ fn vote(_ctx: &mut Context, msg: &Message, _args: Args) -> StdResult<(), Command
             voters.insert(user_id, voter.clone());
         }
         save_voters(&voters)?;
-        msg.reply(&voter)?;
+        msg.reply(ctx, &voter)?;
     } else {
-        msg.reply("Please DM me instead with this.")?;
+        msg.reply(ctx, "Please DM me instead with this.")?;
     }
     Ok(())
 }
@@ -280,6 +302,11 @@ fn save_voters(users: &Voters) -> io::Result<()> {
     Ok(())
 }
 
+group!({
+    name: "general",
+    commands: [ping, info, emojis, setgame, rpn, stalch, pdgqz, seximal, vote, say]
+});
+
 #[derive(Default)]
 struct Handler;
 
@@ -290,20 +317,11 @@ fn main() {
 
     client.with_framework(StandardFramework::new()
         .configure(|c| c.prefix(PREFIX))
-        .cmd("ping", ping)
-        .cmd("info", info)
-        .cmd("emoji", emojis)
-        .cmd("setgame", setgame)
-        .cmd("rpn", rpn)
-        .cmd("stalch", stalch)
-        .cmd("pdgqz", pdgqz)
-        .cmd("seximal", seximal)
-        .cmd("seticon", seticon)
-        .cmd("vote", vote)
+        .group(&GENERAL_GROUP)
     );
 
     {
-        let mut data = client.data.lock();
+        let mut data = client.data.write();
         data.insert::<BotUser>(String::default());
         data.insert::<PdgqzDisalloweds>(Vec::new());
     }
@@ -314,17 +332,17 @@ fn main() {
 }
 
 macro_rules! joke {
-    ($s:expr; $($trigger:expr),+; $bl:block) => (
+    ($ctx:expr, $s:expr; $($trigger:expr),+; $bl:block) => (
         if $($s.contains($trigger))||* $bl
     );
-    ($s:expr, $channel_id:expr; $($trigger:expr),+;; $joke:expr) => (
-        joke!($s; $($trigger),*; {
-            $channel_id.say($joke).unwrap();
+    ($ctx:expr, $s:expr, $channel_id:expr; $($trigger:expr),+;; $joke:expr) => (
+        joke!($ctx, $s; $($trigger),*; {
+            $channel_id.say($ctx, $joke).unwrap();
         })
     );
-    ($s:expr, $channel_id:expr; $($trigger:expr),+; $jokes:expr) => (
-        joke!($s; $($trigger),*; {
-            send_random($channel_id, &$jokes).unwrap();
+    ($ctx:expr, $s:expr, $channel_id:expr; $($trigger:expr),+; $jokes:expr) => (
+        joke!($ctx, $s; $($trigger),*; {
+            send_random($ctx, $channel_id, &$jokes).unwrap();
         })
     );
 }
@@ -333,11 +351,11 @@ impl EventHandler for Handler {
     fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         println!("Guilds:");
-        for name in ready.guilds.iter().map(|g| g.id().to_partial_guild().unwrap().name) {
+        for name in ready.guilds.iter().map(|g| g.id().to_partial_guild(&ctx).unwrap().name) {
             println!("    {}", name);
         }
         {
-            let mut data = ctx.data.lock();
+            let mut data = ctx.data.write();
             *data.get_mut::<BotUser>().unwrap() = ready.user.tag();
         }
     }
@@ -347,7 +365,7 @@ impl EventHandler for Handler {
             return
         }
         {
-            if ctx.data.lock().get::<PdgqzDisalloweds>().unwrap().contains(&msg.channel_id) {
+            if ctx.data.read().get::<PdgqzDisalloweds>().unwrap().contains(&msg.channel_id) {
                 let filter = |c: char| {
                     let c = c.to_lowercase().next().unwrap();
                      c == 'p' || c == 'd' || c == 'g' || c == 'q' || c == 'z'
@@ -355,7 +373,7 @@ impl EventHandler for Handler {
                 if msg.content.chars().any(filter) {
                     let s = msg.content.chars().filter(|c| !filter(*c)).collect::<String>();
                     if !s.is_empty() {
-                        msg.channel_id.say(s).unwrap();
+                        msg.channel_id.say(&ctx, s).unwrap();
                     }
                 }
             }
@@ -365,58 +383,58 @@ impl EventHandler for Handler {
             if start == "poll: " || start == "Poll: " || start == "POLL: " {
                 let poll = &msg.content[6..];
 
-                let msg = COUNCIL_POLLS.say(format!("{}: {}", msg.author.mention(), poll)).unwrap();
+                let msg = COUNCIL_POLLS.say(&ctx, format!("{}: {}", msg.author.mention(), poll)).unwrap();
 
                 let yes = EmojiIdentifier{id: VOTE_YES, name: "yes".to_owned()};
                 let no = EmojiIdentifier{id: VOTE_NO, name: "no".to_owned()};
 
-                msg.react(yes).unwrap();
-                msg.react(no).unwrap();
+                msg.react(&ctx, yes).unwrap();
+                msg.react(&ctx, no).unwrap();
             }
         }
         if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.attachments.iter().any(|a| a.width.is_some()) {
-            msg.channel_id.say("Den er gammel!").unwrap();
+            msg.channel_id.say(&ctx, "Den er gammel!").unwrap();
         }
         let s: String = msg.content.chars()
         .filter(|c| c.is_alphanumeric())
         .flat_map(|c|c.to_lowercase())
         .collect();
 
-        joke!(s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
-        joke!(s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
-        joke!(s, msg.channel_id; "minecraft";; "MINECRAFT!");
-        joke!(s, msg.channel_id; "beartooth"; BEARTOOTH);
-        joke!(s, msg.channel_id; "rep";; "Rep mig!");
-        joke!(s, msg.channel_id; "ftl";; "Zoltan shield OP");
-        joke!(s, msg.channel_id; "bindingofisaac";; "Mom OP");
-        joke!(s, msg.channel_id; "meme";; "krydrede migmig'er");
-        joke!(s, msg.channel_id; "gunsoficarus";; "Spillere online: 8");
-        joke!(s, msg.channel_id; "doom";; "Rip and tear!");
-        joke!(s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
-        joke!(s, msg.channel_id; "report";; "ReviewBrah");
-        joke!(s; "english"; {
-            msg.channel_id.send_message(|cm| {
+        joke!(&ctx, s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
+        joke!(&ctx, s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
+        joke!(&ctx, s, msg.channel_id; "minecraft";; "MINECRAFT!");
+        joke!(&ctx, s, msg.channel_id; "beartooth"; BEARTOOTH);
+        joke!(&ctx, s, msg.channel_id; "rep";; "Rep mig!");
+        joke!(&ctx, s, msg.channel_id; "ftl";; "Zoltan shield OP");
+        joke!(&ctx, s, msg.channel_id; "bindingofisaac";; "Mom OP");
+        joke!(&ctx, s, msg.channel_id; "meme";; "krydrede migmig'er");
+        joke!(&ctx, s, msg.channel_id; "gunsoficarus";; "Spillere online: 8");
+        joke!(&ctx, s, msg.channel_id; "doom";; "Rip and tear!");
+        joke!(&ctx, s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
+        joke!(&ctx, s, msg.channel_id; "report";; "ReviewBrah");
+        joke!(&ctx, s; "english"; {
+            msg.channel_id.send_message(&ctx, |cm| {
                 cm.embed(|e| {
                     e.image("http://dev.lfalch.com/english.jpg")
                 })
             }).unwrap();
         });
-        joke!(s, msg.channel_id; "warthunder", "thunder", "tankspil";; "Jeg elsker World of Tanks!");
-        joke!(s, msg.channel_id; "ra3", "redalert"; REDALERT);
-        joke!(s, msg.channel_id; "rusland", "russia", "росси", "russisk",
+        joke!(&ctx, s, msg.channel_id; "warthunder", "thunder", "tankspil";; "Jeg elsker World of Tanks!");
+        joke!(&ctx, s, msg.channel_id; "ra3", "redalert"; REDALERT);
+        joke!(&ctx, s, msg.channel_id; "rusland", "russia", "росси", "russisk",
         "russian", "русск", "russer";; "Союз нерушимый республик свободных!");
 
         let user = {
-            ctx.data.lock().get::<BotUser>().unwrap().clone()
+            ctx.data.read().get::<BotUser>().unwrap().clone()
         };
         if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
-            send_random(msg.channel_id, &RESPONSES).unwrap();
+            send_random(&ctx, msg.channel_id, &RESPONSES).unwrap();
         }
     }
 
-    fn reaction_add(&self, _ctx: Context, add_reaction: Reaction) {
+    fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         if add_reaction.channel_id == COUNCIL_POLLS {
-            let message = add_reaction.message().unwrap();
+            let message = add_reaction.message(&ctx).unwrap();
 
             if message.reactions.iter().any(|r| if let ReactionType::Unicode(ref s) = r.reaction_type {
                 s == "❎" || s == "✅"
@@ -425,14 +443,14 @@ impl EventHandler for Handler {
                 return;
             }
 
-            let mut aye_sayers = message.reaction_users(EmojiIdentifier{id: VOTE_YES, name: "ja".to_owned()}, None, None).unwrap();
-            let mut nay_sayers = message.reaction_users(EmojiIdentifier{id: VOTE_NO, name: "nej".to_owned()}, None, None).unwrap();
+            let mut aye_sayers = message.reaction_users(&ctx, EmojiIdentifier{id: VOTE_YES, name: "ja".to_owned()}, None, None).unwrap();
+            let mut nay_sayers = message.reaction_users(&ctx, EmojiIdentifier{id: VOTE_NO, name: "nej".to_owned()}, None, None).unwrap();
 
-            aye_sayers.retain(|u| !u.bot && u.has_role(FALCHATS, COUNCILLOR_ROLE));
-            nay_sayers.retain(|u| !u.bot && u.has_role(FALCHATS, COUNCILLOR_ROLE));
+            aye_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap());
+            nay_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap());
 
             let pass_limit = (FALCHATS
-                .members(Some(1000), None::<UserId>)
+                .members(&ctx, Some(1000), None::<UserId>)
                 .unwrap()
                 .iter()
                 .filter(|member| member.roles.contains(&COUNCILLOR_ROLE))
@@ -452,16 +470,16 @@ impl EventHandler for Handler {
                     list_of_people.push_str(", ");
                     list_of_people.push_str(&person.mention());
                 }
-                message.react(verdict.1).unwrap();
-                COUNCIL_POLLS_RESULTS.say(format!("Følg. forslag er blevet **{}{}** {}-{} af {}: \n{}", verdict.0, verdict.1, ayes, noes, &list_of_people[2..], message.content)).unwrap();
+                message.react(&ctx, verdict.1).unwrap();
+                COUNCIL_POLLS_RESULTS.say(&ctx, format!("Følg. forslag er blevet **{}{}** {}-{} af {}: \n{}", verdict.0, verdict.1, ayes, noes, &list_of_people[2..], message.content)).unwrap();
             }
         }
     }
 }
 
-fn send_random(chl: ChannelId, list: &[&str]) -> Result<Message> {
+fn send_random(ctx: &Context, chl: ChannelId, list: &[&str]) -> Result<Message> {
     let i = thread_rng().gen_range(0, list.len());
-    chl.say(list[i])
+    chl.say(ctx, list[i])
 }
 
 #[derive(Debug, Clone)]
