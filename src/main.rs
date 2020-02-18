@@ -448,13 +448,17 @@ impl EventHandler for Handler {
 
             aye_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap());
             nay_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap());
+            let abstainers: Vec<_> = aye_sayers.iter().filter(|u| nay_sayers.contains(&u)).cloned().collect();
+
+            aye_sayers.retain(|u| !abstainers.contains(u));
+            nay_sayers.retain(|u| !abstainers.contains(u));
 
             let pass_limit = (FALCHATS
                 .members(&ctx, Some(1000), None::<UserId>)
                 .unwrap()
                 .iter()
                 .filter(|member| member.roles.contains(&COUNCILLOR_ROLE))
-                .count()) / 2;
+                .count() - abstainers.len()) / 2;
 
             let (ayes, noes) = (aye_sayers.len(), nay_sayers.len());
 
@@ -471,7 +475,7 @@ impl EventHandler for Handler {
                     list_of_people.push_str(&person.mention());
                 }
                 message.react(&ctx, verdict.1).unwrap();
-                COUNCIL_POLLS_RESULTS.say(&ctx, format!("Følg. forslag er blevet **{}{}** {}-{} af {}: \n{}", verdict.0, verdict.1, ayes, noes, &list_of_people[2..], message.content)).unwrap();
+                COUNCIL_POLLS_RESULTS.say(&ctx, format!("Følg. forslag er blevet **{}{}** {}-{} ({} abstained) af {}: \n{}", verdict.0, verdict.1, ayes, noes, abstainers.len(), &list_of_people[2..], message.content)).unwrap();
             }
         }
     }
