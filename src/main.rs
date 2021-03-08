@@ -333,7 +333,7 @@ impl EventHandler for Handler {
             if start == "poll: " || start == "Poll: " || start == "POLL: " {
                 let poll = &msg.content[6..];
 
-                let msg = COUNCIL_POLLS.say(&ctx, format!("<@&588012792326520836> ny poll af {}: {}", msg.author.mention(), poll)).unwrap();
+                let msg = COUNCIL_POLLS.say(&ctx, format!("<@&588012792326520836> Poll af {}: {}", msg.author.mention(), poll)).unwrap();
 
                 let yes = EmojiIdentifier{id: VOTE_YES, name: "yes".to_owned()};
                 let no = EmojiIdentifier{id: VOTE_NO, name: "no".to_owned()};
