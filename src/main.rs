@@ -10,6 +10,7 @@ use typemap::Key;
 
 use rand::{Rng, rngs::ThreadRng};
 
+use chrono::offset::Utc;
 // use hyper::rt::Future;
 
 use serenity::prelude::*;
@@ -42,6 +43,8 @@ const VOTE_NO: EmojiId = EmojiId(588070628456660992);
 
 #[allow(clippy::unreadable_literal)]
 const COUNCILLOR_ROLE: RoleId = RoleId(588012792326520836);
+#[allow(clippy::unreadable_literal)]
+const KONGE_ROLE: RoleId = RoleId(189742532698177536);
 
 #[allow(clippy::unreadable_literal)]
 const FALCHATS: GuildId = GuildId(189120762659995648);
@@ -355,6 +358,12 @@ impl EventHandler for Handler {
                 return;
             }
 
+
+            let force_resolve =
+                add_reaction.emoji == "🕰️".into()
+                && (Utc::now() - add_reaction.message_id.created_at().with_timezone(&Utc)).num_weeks() >= 4
+                && add_reaction.user(&ctx).unwrap().has_role(&ctx, FALCHATS, KONGE_ROLE).unwrap_or(false);
+
             let mut aye_sayers = message.reaction_users(&ctx, EmojiIdentifier{id: VOTE_YES, name: "ja".to_owned()}, None, None).unwrap();
             let mut nay_sayers = message.reaction_users(&ctx, EmojiIdentifier{id: VOTE_NO, name: "nej".to_owned()}, None, None).unwrap();
 
@@ -365,12 +374,17 @@ impl EventHandler for Handler {
             aye_sayers.retain(|u| !abstainers.contains(u));
             nay_sayers.retain(|u| !abstainers.contains(u));
 
-            let pass_limit = (FALCHATS
-                .members(&ctx, Some(1000), None::<UserId>)
-                .unwrap()
-                .iter()
-                .filter(|member| member.roles.contains(&COUNCILLOR_ROLE))
-                .count() - abstainers.len()) / 2;
+            // No pass limit when force resolving
+            let pass_limit = if force_resolve {
+                0
+            } else {
+                (FALCHATS
+                    .members(&ctx, Some(1000), None::<UserId>)
+                    .unwrap()
+                    .iter()
+                    .filter(|member| member.roles.contains(&COUNCILLOR_ROLE))
+                    .count() - abstainers.len()) / 2
+            };
 
             let (ayes, noes) = (aye_sayers.len(), nay_sayers.len());
 
@@ -379,6 +393,8 @@ impl EventHandler for Handler {
                 let verdict = match ayes.cmp(&noes) {
                     Greater => ("vedtaget ", "✅", aye_sayers),
                     Less => ("afslået ", "❎", nay_sayers),
+                    // If set to force resolve, reject things that don't reach a majority
+                    Equal if force_resolve => ("afslået uden flertal ", "❎", nay_sayers),
                     Equal => return,
                 };
                 let mut list_of_people = String::with_capacity(37*verdict.2.len());
