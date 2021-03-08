@@ -331,22 +331,6 @@ fn main() {
     }
 }
 
-macro_rules! joke {
-    ($ctx:expr, $s:expr; $($trigger:expr),+; $bl:block) => (
-        if $($s.contains($trigger))||* $bl
-    );
-    ($ctx:expr, $s:expr, $channel_id:expr; $($trigger:expr),+;; $joke:expr) => (
-        joke!($ctx, $s; $($trigger),*; {
-            $channel_id.say($ctx, $joke).unwrap();
-        })
-    );
-    ($ctx:expr, $s:expr, $channel_id:expr; $($trigger:expr),+; $jokes:expr) => (
-        joke!($ctx, $s; $($trigger),*; {
-            send_random($ctx, $channel_id, &$jokes).unwrap();
-        })
-    );
-}
-
 impl EventHandler for Handler {
     fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
@@ -391,44 +375,6 @@ impl EventHandler for Handler {
                 msg.react(&ctx, yes).unwrap();
                 msg.react(&ctx, no).unwrap();
             }
-        }
-        if msg.channel_id == MEMES && msg.author.id == WESTMANN && msg.attachments.iter().any(|a| a.width.is_some()) {
-            msg.channel_id.say(&ctx, "Den er gammel!").unwrap();
-        }
-        let s: String = msg.content.chars()
-        .filter(|c| c.is_alphanumeric())
-        .flat_map(|c|c.to_lowercase())
-        .collect();
-
-        joke!(&ctx, s, msg.channel_id; "css", "source";; "Hvor er mine skins!?");
-        joke!(&ctx, s, msg.channel_id; "csgo", "counterstrike", "globaloffensive"; CSGO_MSGS);
-        joke!(&ctx, s, msg.channel_id; "minecraft";; "MINECRAFT!");
-        joke!(&ctx, s, msg.channel_id; "beartooth"; BEARTOOTH);
-        joke!(&ctx, s, msg.channel_id; "rep";; "Rep mig!");
-        joke!(&ctx, s, msg.channel_id; "ftl";; "Zoltan shield OP");
-        joke!(&ctx, s, msg.channel_id; "bindingofisaac";; "Mom OP");
-        joke!(&ctx, s, msg.channel_id; "meme";; "krydrede migmig'er");
-        joke!(&ctx, s, msg.channel_id; "gunsoficarus";; "Spillere online: 8");
-        joke!(&ctx, s, msg.channel_id; "doom";; "Rip and tear!");
-        joke!(&ctx, s, msg.channel_id; "dyinglight";; "Det dér Left 4 Dead-spil?");
-        joke!(&ctx, s, msg.channel_id; "report";; "ReviewBrah");
-        joke!(&ctx, s; "english"; {
-            msg.channel_id.send_message(&ctx, |cm| {
-                cm.embed(|e| {
-                    e.image("http://dev.lfalch.com/english.jpg")
-                })
-            }).unwrap();
-        });
-        joke!(&ctx, s, msg.channel_id; "warthunder", "thunder", "tankspil";; "Jeg elsker World of Tanks!");
-        joke!(&ctx, s, msg.channel_id; "ra3", "redalert"; REDALERT);
-        joke!(&ctx, s, msg.channel_id; "rusland", "russia", "росси", "russisk",
-        "russian", "русск", "russer";; "Союз нерушимый республик свободных!");
-
-        let user = {
-            ctx.data.read().get::<BotUser>().unwrap().clone()
-        };
-        if msg.mentions.iter().map(|u| u.tag()).any(|u| u == user) {
-            send_random(&ctx, msg.channel_id, &RESPONSES).unwrap();
         }
     }
 
@@ -479,11 +425,6 @@ impl EventHandler for Handler {
             }
         }
     }
-}
-
-fn send_random(ctx: &Context, chl: ChannelId, list: &[&str]) -> Result<Message> {
-    let i = thread_rng().gen_range(0, list.len());
-    chl.say(ctx, list[i])
 }
 
 #[derive(Debug, Clone)]
