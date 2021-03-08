@@ -8,7 +8,7 @@ use std::env;
 use std::result::Result as StdResult;
 use typemap::Key;
 
-use rand::{Rng, thread_rng, rngs::ThreadRng};
+use rand::{Rng, rngs::ThreadRng};
 
 // use hyper::rt::Future;
 
@@ -20,19 +20,14 @@ use serenity::model::{
     id::*,
     misc::EmojiIdentifier
 };
-use serenity::Result;
 use serenity::utils;
 
 use serenity::framework::StandardFramework;
 
 const PREFIX: &str = "]";
 #[allow(clippy::unreadable_literal)]
-const WESTMANN: UserId = UserId(229154015626264577);
-#[allow(clippy::unreadable_literal)]
 const FALCH: UserId = UserId(165877785544491008);
 
-#[allow(clippy::unreadable_literal)]
-const MEMES: ChannelId = ChannelId(306454829738491904);
 #[allow(clippy::unreadable_literal)]
 const COUNCIL: ChannelId = ChannelId(588016489811017749);
 #[allow(clippy::unreadable_literal)]
@@ -206,35 +201,6 @@ fn vote(ctx: &mut Context, msg: &Message, _args: Args) -> CommandResult {
     }
     Ok(())
 }
-
-const CSGO_MSGS: [&str; 6] = [
-    "Vi varmer op med en comp!",
-    "Jeg er på!",
-    "Jeg er mere til Call of Duty ..",
-    "Сука блядь!",
-    "-skyder en bot for at få dens Bizon-",
-    "Mongoskrald!"
-];
-
-const BEARTOOTH: [&str; 3] = [
-    "I’m not useless! I’m just the king of excuses!",
-    "One life and one decision! Make sure it ends with you still living!",
-    "Lorteskat på T-shirts."
-];
-
-const RESPONSES: [&str; 4] = [
-    "Undskyld, kan ikke snakke lige nu :(",
-    "Hey, kan jeg ringe igen senere?",
-    "Hva' så, din noob!? :P",
-    "Ad, hvem er du?"
-];
-
-const REDALERT: [&str; 4] = [
-    "Your base is under a salt!",
-    "Det gamle lortespil?",
-    "Jeg er mere til CSGO.",
-    "\"Mine depleted\" ..."
-];
 
 struct PdgqzDisalloweds;
 
