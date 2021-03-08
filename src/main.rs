@@ -446,8 +446,8 @@ impl EventHandler for Handler {
             let mut aye_sayers = message.reaction_users(&ctx, EmojiIdentifier{id: VOTE_YES, name: "ja".to_owned()}, None, None).unwrap();
             let mut nay_sayers = message.reaction_users(&ctx, EmojiIdentifier{id: VOTE_NO, name: "nej".to_owned()}, None, None).unwrap();
 
-            aye_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap());
-            nay_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap());
+            aye_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap_or(false));
+            nay_sayers.retain(|u| !u.bot && u.has_role(&ctx, FALCHATS, COUNCILLOR_ROLE).unwrap_or(false));
             let abstainers: Vec<_> = aye_sayers.iter().filter(|u| nay_sayers.contains(&u)).cloned().collect();
 
             aye_sayers.retain(|u| !abstainers.contains(u));
